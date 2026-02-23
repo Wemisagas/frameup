@@ -1,6 +1,6 @@
 # frameup
 
-<img src="logo.png" width="200" />
+<img src="logo-dark.gif" width="400" />
 
 **frameup** is a tool built for designers and developers to easily capture high-quality visuals of their work. It opens any website in a real browser and saves it as high-resolution screenshots or a smooth scroll-through video — desktop and mobile sizes at once, straight to your Downloads folder.
 
