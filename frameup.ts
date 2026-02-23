@@ -20,6 +20,7 @@ Options:
   --scroll=<ms>    Duration of the scroll in video mode           (default: 8000)
   --hold=<ms>      Pause at the bottom before the video ends      (default: 1500)
   --density=<n>    Pixel density for images, 1, 2, or 3           (default: 3)
+  --selector=<css> Capture a specific element only (images only)
   --help           Show this help message
 
 Examples:
@@ -27,6 +28,8 @@ Examples:
   bun run frameup.ts https://example.com video
   bun run frameup.ts https://example.com video --scroll=12000
   bun run frameup.ts https://example.com images --wait=3000 --density=2
+  bun run frameup.ts https://example.com images --selector=".hero"
+  bun run frameup.ts https://example.com images --selector="#about"
   `)
   process.exit(0)
 }
@@ -50,6 +53,7 @@ const SIZES = [
 ]
 
 const DENSITY          = flag('density', 3)
+const selector         = args.find(a => a.startsWith('--selector='))?.split('=').slice(1).join('=')
 const WAIT_MS          = flag('wait',    6_000)
 const SCROLL_DURATION_MS = flag('scroll', 8_000)
 const HOLD_MS          = flag('hold',    1_500)
@@ -70,8 +74,14 @@ for (const { width, height } of SIZES) {
     await page.setViewportSize({ width, height })
     await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 })
     await page.waitForTimeout(WAIT_MS)
-    const file = join(outDir, `${hostname}_${ts}_${width}x${height}.png`)
-    await page.screenshot({ path: file })
+    const suffix = selector ? `_${selector.replace(/[^a-z0-9]/gi, '')}` : ''
+    const file = join(outDir, `${hostname}_${ts}_${width}x${height}${suffix}.png`)
+    if (selector) {
+      const el = page.locator(selector).first()
+      await el.screenshot({ path: file })
+    } else {
+      await page.screenshot({ path: file })
+    }
     console.log(`✓ ${file}`)
     await page.close()
   } else {
