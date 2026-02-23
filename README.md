@@ -18,6 +18,8 @@ https://github.com/zjebinsky/frameup
 
 ## One-time setup
 
+### macOS
+
 You'll need three free tools installed. Open **Terminal** (press `Cmd + Space`, type Terminal, hit Enter) and run each block below.
 
 **1. Install Homebrew** (a package manager for macOS):
@@ -45,22 +47,58 @@ bunx playwright install chromium
 
 That's it. You only ever do this once.
 
+### Windows
+
+Open **PowerShell** (press `Win + S`, type PowerShell, hit Enter) and run each block below.
+
+**1. Install Scoop** (a package manager for Windows):
+```powershell
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+irm get.scoop.sh | iex
+```
+
+**2. Install Bun** (runs the script):
+```powershell
+scoop install bun
+```
+
+**3. Install ffmpeg** (converts videos to MP4):
+```powershell
+scoop install ffmpeg
+```
+
+**4. Install Git** (if you don't have it):
+```powershell
+scoop install git
+```
+
+**5. Download frameup and set it up:**
+```powershell
+git clone https://github.com/zjebinsky/frameup.git $HOME\Developer\frameup
+cd $HOME\Developer\frameup
+bun install
+bunx playwright install chromium
+```
+
 ---
 
 ## Every day use
 
-Open Terminal, then run:
+**macOS** — open Terminal:
 
 ```bash
 cd ~/Developer/frameup
 bun run frameup.ts https://yourwebsite.com images
 ```
 
-Or for a scroll video:
+**Windows** — open PowerShell:
 
-```bash
-bun run frameup.ts https://yourwebsite.com video
+```powershell
+cd $HOME\Developer\frameup
+bun run frameup.ts https://yourwebsite.com images
 ```
+
+Or for a scroll video, replace `images` with `video`.
 
 Your files will appear in **~/Downloads** within about 30 seconds.
 

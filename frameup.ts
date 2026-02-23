@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 import { join } from 'path'
-import { tmpdir } from 'os'
+import { tmpdir, homedir } from 'os'
 import { rename, readdir, mkdir } from 'fs/promises'
 import { execSync } from 'child_process'
 
@@ -26,14 +26,14 @@ const SCROLL_DURATION_MS = 8_000
 const HOLD_MS            = 1_500
 
 const hasFfmpeg = (() => {
-  try { execSync('which ffmpeg', { stdio: 'ignore' }); return true }
+  try { execSync('ffmpeg -version', { stdio: 'ignore' }); return true }
   catch { return false }
 })()
 
 const browser  = await chromium.launch()
 const hostname = new URL(url).hostname.replace(/\./g, '-')
 const ts       = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')
-const outDir   = join(process.env.HOME!, 'Downloads')
+const outDir   = join(homedir(), 'Downloads')
 
 for (const { width, height } of SIZES) {
   if (mode === 'images') {
