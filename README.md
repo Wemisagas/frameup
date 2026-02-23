@@ -39,8 +39,8 @@ brew install ffmpeg
 
 **4. Download frameup and set it up:**
 ```bash
-git clone https://github.com/zjebinsky/frameup.git ~/Developer/frameup
-cd ~/Developer/frameup
+git clone https://github.com/zjebinsky/frameup.git ~/frameup
+cd ~/frameup
 bun install
 bunx playwright install chromium
 ```
@@ -74,8 +74,8 @@ scoop install git
 
 **5. Download frameup and set it up:**
 ```powershell
-git clone https://github.com/zjebinsky/frameup.git $HOME\Developer\frameup
-cd $HOME\Developer\frameup
+git clone https://github.com/zjebinsky/frameup.git $HOME\frameup
+cd $HOME\frameup
 bun install
 bunx playwright install chromium
 ```
@@ -87,14 +87,14 @@ bunx playwright install chromium
 **macOS** — open Terminal:
 
 ```bash
-cd ~/Developer/frameup
+cd ~/frameup
 bun run frameup.ts https://yourwebsite.com images
 ```
 
 **Windows** — open PowerShell:
 
 ```powershell
-cd $HOME\Developer\frameup
+cd $HOME\frameup
 bun run frameup.ts https://yourwebsite.com images
 ```
 
