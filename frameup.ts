@@ -328,13 +328,13 @@ for (const url of urls) {
       await page.close()
 
     } else {
-      const frameDir = join(tmpdir(), `frameup-frames-${Date.now()}`)
-      await mkdir(frameDir, { recursive: true })
+      const videoDir = join(tmpdir(), `frameup-${Date.now()}`)
+      await mkdir(videoDir, { recursive: true })
 
       const context = await browser.newContext({
         viewport: { width, height },
-        deviceScaleFactor: 2,
         colorScheme: darkMode ? 'dark' : 'light',
+        recordVideo: { dir: videoDir, size: { width, height } },
       })
 
       const page = await context.newPage()
@@ -358,19 +358,6 @@ for (const url of urls) {
       const baseName = `${stem}_${ts}_${width}x${height}${suffix}`
 
       await spin(`Rolling ${label} (${width}×${height})…`, async () => {
-        let frameIndex = 0
-        let capturing  = true
-
-        // Screenshot loop — runs as fast as Playwright allows
-        const captureLoop = (async () => {
-          while (capturing) {
-            const framePath = join(frameDir, `frame_${String(frameIndex).padStart(5, '0')}.png`)
-            await page.screenshot({ path: framePath })
-            frameIndex++
-          }
-        })()
-
-        // Scroll animation runs in the browser independently
         if (!noScroll) {
           await page.evaluate(async ({ durationMs, sel }) => {
             let startY = 0
@@ -401,37 +388,45 @@ for (const url of urls) {
         }
 
         await page.waitForTimeout(HOLD_MS)
-        capturing = false
-        await captureLoop
-
         await page.close()
         await context.close()
+      })
 
-        if (!hasFfmpeg) {
-          console.error(`\n  ${c.red}✗${c.reset}  ffmpeg is required for video mode\n`)
-          return
-        }
+      const files = await readdir(videoDir)
+      const webm  = files.find(f => f.endsWith('.webm'))
+      if (!webm) {
+        console.error(`\n  ${c.red}✗${c.reset}  No video found for ${width}×${height}\n`)
+        continue
+      }
 
+      const webmSrc = join(videoDir, webm)
+
+      if (hasFfmpeg) {
         const mp4Out = join(outDir, `${baseName}.mp4`)
-        const totalMs  = (noScroll ? 0 : SCROLL_DURATION_MS) + HOLD_MS
-        const fps      = FPS > 0 ? FPS : Math.max(1, Math.round(frameIndex / (totalMs / 1000)))
-        const filterGraph = watermarkPath
-          ? `[0:v][1:v]overlay=W-w-20:H-h-20`
-          : null
-        const filterFlag = filterGraph
-          ? `-filter_complex "${filterGraph}"`
-          : ''
-        const wmInput = watermarkPath ? `-i "${watermarkPath}"` : ''
-
-        await execAsync(
-          `ffmpeg -y -r ${fps} -i "${frameDir}/frame_%05d.png" ${wmInput} ${filterFlag} -c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -movflags +faststart "${mp4Out}"`
-        )
-
-        await rm(frameDir, { recursive: true, force: true })
-
+        await spin('Developing the footage…', async () => {
+          const fpsFlag = FPS > 0 ? `-r ${FPS} ` : ''
+          // Scale 2x with Lanczos + unsharp for perceived sharpness
+          const sharpenFilter = 'scale=iw*2:ih*2:flags=lanczos,unsharp=5:5:1.0:5:5:0.0'
+          const filterGraph = watermarkPath
+            ? `[0:v]${sharpenFilter}[sharp];[sharp][1:v]overlay=W-w-20:H-h-20`
+            : sharpenFilter
+          const filterFlag = watermarkPath
+            ? `-filter_complex "${filterGraph}"`
+            : `-vf "${filterGraph}"`
+          const wmInput = watermarkPath ? `-i "${watermarkPath}" ` : ''
+          await execAsync(
+            `ffmpeg -y -i "${webmSrc}" ${wmInput}${filterFlag} ${fpsFlag}-c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -movflags +faststart "${mp4Out}"`
+          )
+          await rm(videoDir, { recursive: true, force: true })
+        })
         log(mp4Out)
         saved.push(mp4Out)
-      })
+      } else {
+        const webmOut = join(outDir, `${baseName}.webm`)
+        await rename(webmSrc, webmOut)
+        log(webmOut)
+        saved.push(webmOut)
+      }
     }
 
     console.log()
