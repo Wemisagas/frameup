@@ -190,37 +190,61 @@ if (args.length === 0) {
   })
   if (p.isCancel(modeAnswer)) { p.cancel('Cancelled.'); process.exit(0) }
 
-  let scrollMs = 8000
+  let scrollMs = 0
+  let useSwipe = false
   if (modeAnswer === 'video') {
     const scrollAnswer = await p.select({
       message: 'Scroll speed',
       options: [
-        { value: 6000,  label: 'Fast',   hint: '6 seconds' },
-        { value: 8000,  label: 'Normal', hint: '8 seconds (default)' },
-        { value: 12000, label: 'Slow',   hint: '12 seconds' },
+        { value: 0,     label: 'Auto',      hint: 'calculated from page height (default)' },
+        { value: 6000,  label: 'Fast',      hint: '6 seconds' },
+        { value: 8000,  label: 'Normal',    hint: '8 seconds' },
+        { value: 12000, label: 'Slow',      hint: '12 seconds' },
         { value: 18000, label: 'Cinematic', hint: '18 seconds' },
       ],
     })
     if (p.isCancel(scrollAnswer)) { p.cancel('Cancelled.'); process.exit(0) }
     scrollMs = scrollAnswer as number
+
+    const swipeAnswer = await p.select({
+      message: 'Scroll style',
+      options: [
+        { value: 'smooth', label: 'Smooth', hint: 'standard easing — clean and consistent' },
+        { value: 'swipe',  label: 'Swipe',  hint: 'emulates finger impulses — more natural feel' },
+      ],
+    })
+    if (p.isCancel(swipeAnswer)) { p.cancel('Cancelled.'); process.exit(0) }
+    useSwipe = swipeAnswer === 'swipe'
   }
+
+  const selectorAnswer = await p.text({
+    message: 'Capture a specific section?',
+    placeholder: '.hero  or  #pricing  or  nav  — leave blank for whole page',
+  })
+  if (p.isCancel(selectorAnswer)) { p.cancel('Cancelled.'); process.exit(0) }
 
   const extras = await p.multiselect({
     message: 'Any extras? (space to toggle, enter to confirm)',
     options: [
-      { value: 'dark',     label: 'Dark mode',        hint: 'force prefers-color-scheme: dark' },
-      { value: 'webp',     label: 'WebP format',      hint: 'images only — smaller file size' },
-      { value: 'noscroll', label: 'No scroll',        hint: 'video only — record page as-is' },
-      { value: 'zip',      label: 'Zip outputs',      hint: 'bundle everything into one file' },
-      { value: 'open',     label: 'Open when done',   hint: 'open output folder automatically' },
+      { value: 'dark',     label: 'Dark mode',      hint: 'force prefers-color-scheme: dark' },
+      { value: 'webp',     label: 'WebP format',    hint: 'images only — smaller file size' },
+      { value: 'noscroll', label: 'No scroll',      hint: 'video only — record page as-is' },
+      { value: 'zip',      label: 'Zip outputs',    hint: 'bundle everything into one file' },
+      { value: 'open',     label: 'Open when done', hint: 'open output folder automatically' },
     ],
     required: false,
   }) as string[]
   if (p.isCancel(extras)) { p.cancel('Cancelled.'); process.exit(0) }
 
+  const prefixAnswer = await p.text({
+    message: 'Filename prefix?',
+    placeholder: 'site name — leave blank to use the hostname',
+  })
+  if (p.isCancel(prefixAnswer)) { p.cancel('Cancelled.'); process.exit(0) }
+
   const outAnswer = await p.text({
     message: 'Output folder',
-    placeholder: `~/Downloads  (leave blank for default)`,
+    placeholder: '~/Downloads  — leave blank for default',
   })
   if (p.isCancel(outAnswer)) { p.cancel('Cancelled.'); process.exit(0) }
 
@@ -231,13 +255,16 @@ if (args.length === 0) {
   const wizardArgs: string[] = [
     ...(urlInput as string).trim().split(/\s+/),
     modeAnswer as string,
-    ...(modeAnswer === 'video'      ? [`--scroll=${scrollMs}`] : []),
-    ...(extras.includes('dark')     ? ['--dark']        : []),
-    ...(extras.includes('webp')     ? ['--format=webp'] : []),
-    ...(extras.includes('noscroll') ? ['--no-scroll']   : []),
-    ...(extras.includes('zip')      ? ['--zip']         : []),
-    ...(extras.includes('open')     ? ['--open']        : []),
-    ...((outAnswer as string).trim() ? [`--out=${(outAnswer as string).trim()}`] : []),
+    ...(modeAnswer === 'video' && scrollMs > 0 ? [`--scroll=${scrollMs}`] : []),
+    ...(useSwipe                               ? ['--swipe']              : []),
+    ...((selectorAnswer as string).trim()      ? [`--selector=${(selectorAnswer as string).trim()}`] : []),
+    ...(extras.includes('dark')                ? ['--dark']               : []),
+    ...(extras.includes('webp')                ? ['--format=webp']        : []),
+    ...(extras.includes('noscroll')            ? ['--no-scroll']          : []),
+    ...(extras.includes('zip')                 ? ['--zip']                : []),
+    ...(extras.includes('open')                ? ['--open']               : []),
+    ...((prefixAnswer as string).trim()        ? [`--prefix=${(prefixAnswer as string).trim()}`] : []),
+    ...((outAnswer as string).trim()           ? [`--out=${(outAnswer as string).trim()}`]       : []),
   ]
 
   const { spawnSync } = await import('child_process')
