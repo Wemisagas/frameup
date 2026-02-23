@@ -91,6 +91,14 @@ bunx playwright install chromium
 3. Hit **Enter**
 4. Run the command:
 
+Not sure about flags? Just run frameup with no arguments and it'll walk you through everything step by step:
+
+```bash
+bun run frameup.ts
+```
+
+Or use it directly:
+
 ```bash
 bun run frameup.ts https://yourwebsite.com images
 ```
@@ -112,6 +120,14 @@ bun run frameup.ts https://site1.com https://site2.com https://site3.com images
 1. Open the **frameup** folder in File Explorer
 2. Click the address bar at the top of the window, type `powershell`, and hit **Enter** — this opens PowerShell directly inside that folder
 3. Run the command:
+
+Not sure about flags? Just run frameup with no arguments and it'll walk you through everything step by step:
+
+```powershell
+bun run frameup.ts
+```
+
+Or use it directly:
 
 ```powershell
 bun run frameup.ts https://yourwebsite.com images

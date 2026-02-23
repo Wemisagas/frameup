@@ -5,6 +5,7 @@ import { rename, readdir, mkdir, readFile } from 'fs/promises'
 import { exec, execSync } from 'child_process'
 import { promisify } from 'util'
 import sharp from 'sharp'
+import * as p from '@clack/prompts'
 
 const execAsync = promisify(exec)
 
@@ -47,12 +48,13 @@ function log(line: string) {
 
 const args = process.argv.slice(2)
 
-if (args.length === 0 || args.includes('--help')) {
+if (args.includes('--help')) {
   console.log(`
   ${c.bold}frameup ✦${c.reset}
 
   ${c.dim}Usage:${c.reset}
     bun run frameup.ts <url> [url2 ...] [images|video] [options]
+    bun run frameup.ts            (no args → interactive wizard)
 
   ${c.dim}Modes:${c.reset}
     images   Capture screenshots (default)
@@ -88,6 +90,67 @@ if (args.length === 0 || args.includes('--help')) {
     bun run frameup.ts --urls=./sites.txt images --prefix=portfolio --out=./out
   `)
   process.exit(0)
+}
+
+// ─── wizard ──────────────────────────────────────────────────────────────────
+
+if (args.length === 0) {
+  console.log(`\n  ${c.bold}frameup ✦${c.reset}\n`)
+  p.intro('  Let\'s set up your capture.')
+
+  const urlInput = await p.text({
+    message: 'URL(s) to capture',
+    placeholder: 'https://yoursite.com  (space-separated for multiple)',
+    validate: v => v.trim() ? undefined : 'At least one URL is required',
+  })
+  if (p.isCancel(urlInput)) { p.cancel('Cancelled.'); process.exit(0) }
+
+  const modeAnswer = await p.select({
+    message: 'What do you want to capture?',
+    options: [
+      { value: 'images', label: 'Screenshots', hint: 'PNG or WebP, desktop + mobile' },
+      { value: 'video',  label: 'Scroll video', hint: 'MP4, desktop + mobile' },
+    ],
+  })
+  if (p.isCancel(modeAnswer)) { p.cancel('Cancelled.'); process.exit(0) }
+
+  const extras = await p.multiselect({
+    message: 'Any extras? (space to toggle, enter to confirm)',
+    options: [
+      { value: 'dark',     label: 'Dark mode',        hint: 'force prefers-color-scheme: dark' },
+      { value: 'webp',     label: 'WebP format',      hint: 'images only — smaller file size' },
+      { value: 'noscroll', label: 'No scroll',        hint: 'video only — record page as-is' },
+      { value: 'zip',      label: 'Zip outputs',      hint: 'bundle everything into one file' },
+      { value: 'open',     label: 'Open when done',   hint: 'open output folder automatically' },
+    ],
+    required: false,
+  }) as string[]
+  if (p.isCancel(extras)) { p.cancel('Cancelled.'); process.exit(0) }
+
+  const outAnswer = await p.text({
+    message: 'Output folder',
+    placeholder: `~/Downloads  (leave blank for default)`,
+  })
+  if (p.isCancel(outAnswer)) { p.cancel('Cancelled.'); process.exit(0) }
+
+  p.outro('Starting capture…')
+  console.log()
+
+  // rebuild argv and re-exec
+  const wizardArgs: string[] = [
+    ...(urlInput as string).trim().split(/\s+/),
+    modeAnswer as string,
+    ...(extras.includes('dark')     ? ['--dark']        : []),
+    ...(extras.includes('webp')     ? ['--format=webp'] : []),
+    ...(extras.includes('noscroll') ? ['--no-scroll']   : []),
+    ...(extras.includes('zip')      ? ['--zip']         : []),
+    ...(extras.includes('open')     ? ['--open']        : []),
+    ...((outAnswer as string).trim() ? [`--out=${(outAnswer as string).trim()}`] : []),
+  ]
+
+  const { spawnSync } = await import('child_process')
+  const result = spawnSync('bun', ['run', 'frameup.ts', ...wizardArgs], { stdio: 'inherit' })
+  process.exit(result.status ?? 0)
 }
 
 function strFlag(name: string): string | undefined {
