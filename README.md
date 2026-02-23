@@ -1,8 +1,8 @@
-# capture
+# frameup
 
-**capture** is a command-line tool that opens any website in a real browser and saves it as high-resolution screenshots or a smooth scroll-through video — desktop and mobile sizes at once, straight to your Downloads folder.
+**frameup** is a command-line tool that opens any website in a real browser and saves it as high-resolution screenshots or a smooth scroll-through video — desktop and mobile sizes at once, straight to your Downloads folder.
 
-https://github.com/zjebinsky/capture
+https://github.com/zjebinsky/frameup
 
 ---
 
@@ -33,10 +33,10 @@ curl -fsSL https://bun.sh/install | bash
 brew install ffmpeg
 ```
 
-**4. Download capture and set it up:**
+**4. Download frameup and set it up:**
 ```bash
-git clone https://github.com/zjebinsky/capture.git ~/Developer/capture
-cd ~/Developer/capture
+git clone https://github.com/zjebinsky/frameup.git ~/Developer/frameup
+cd ~/Developer/frameup
 bun install
 bunx playwright install chromium
 ```
@@ -50,14 +50,14 @@ That's it. You only ever do this once.
 Open Terminal, then run:
 
 ```bash
-cd ~/Developer/capture
-bun run capture.ts https://yourwebsite.com images
+cd ~/Developer/frameup
+bun run frameup.ts https://yourwebsite.com images
 ```
 
 Or for a scroll video:
 
 ```bash
-bun run capture.ts https://yourwebsite.com video
+bun run frameup.ts https://yourwebsite.com video
 ```
 
 Your files will appear in **~/Downloads** within about 30 seconds.
@@ -77,7 +77,7 @@ Files are named automatically: `sitename_date_size.png` / `.mp4`
 
 ## Tweaking timing
 
-If animations haven't finished before the screenshot fires, or the scroll feels too fast, open `capture.ts` in any text editor and adjust these numbers near the top:
+If animations haven't finished before the screenshot fires, or the scroll feels too fast, open `frameup.ts` in any text editor and adjust these numbers near the top:
 
 | Setting | Default | What it does |
 |---|---|---|

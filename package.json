@@ -1,11 +1,11 @@
 {
-  "name": "capture",
+  "name": "frameup",
   "version": "1.0.0",
-  "description": "Capture websites as screenshots or scroll-through videos via Playwright",
+  "description": "Frame up your design work — screenshots and scroll videos of any website",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "capture": "bun run capture.ts"
+    "frameup": "bun run frameup.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
