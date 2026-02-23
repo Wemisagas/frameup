@@ -125,6 +125,25 @@ bun run frameup.ts https://yourwebsite.com video --scroll=12000 --hold=3000
 
 Run `bun run frameup.ts --help` to see all options in the terminal.
 
+### Capturing a specific section
+
+Use `--selector` to target a specific part of the page instead of the whole thing. Pass any CSS selector — a class, an ID, or an element name.
+
+**Screenshots** — crops the output tightly to that element:
+```bash
+bun run frameup.ts https://yourwebsite.com images --selector=".hero"
+bun run frameup.ts https://yourwebsite.com images --selector="#pricing"
+bun run frameup.ts https://yourwebsite.com images --selector="nav"
+```
+
+**Videos** — jumps straight to that section and scrolls through it top to bottom, ignoring the rest of the page:
+```bash
+bun run frameup.ts https://yourwebsite.com video --selector=".features"
+bun run frameup.ts https://yourwebsite.com video --selector="#case-studies"
+```
+
+Not sure what selector to use? Right-click the element in your browser → Inspect → look for the `class` or `id` attribute. Use `.classname` or `#id`.
+
 ---
 
 ## Output
