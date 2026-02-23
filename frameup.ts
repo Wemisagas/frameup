@@ -1,7 +1,7 @@
 import { chromium } from 'playwright'
 import { join, resolve } from 'path'
 import { tmpdir, homedir } from 'os'
-import { rename, readdir, mkdir, readFile } from 'fs/promises'
+import { rename, readdir, mkdir, readFile, rm } from 'fs/promises'
 import { exec, execSync } from 'child_process'
 import { promisify } from 'util'
 import sharp from 'sharp'
@@ -101,7 +101,7 @@ if (args.length === 0) {
   const urlInput = await p.text({
     message: 'URL(s) to capture',
     placeholder: 'https://yoursite.com  (space-separated for multiple)',
-    validate: v => v.trim() ? undefined : 'At least one URL is required',
+    validate: v => (v ?? '').trim() ? undefined : 'At least one URL is required',
   })
   if (p.isCancel(urlInput)) { p.cancel('Cancelled.'); process.exit(0) }
 
@@ -214,7 +214,7 @@ async function dismissCookies(page: import('playwright').Page) {
   await page.evaluate(() => {
     // Click the most common accept buttons
     const acceptText = /^(accept|accept all|accept cookies|agree|i agree|got it|ok|okay|allow|allow all|allow cookies|consent|continue|yes|confirm)$/i
-    const buttons = [...document.querySelectorAll('button, a, [role="button"]')]
+    const buttons = Array.from(document.querySelectorAll('button, a, [role="button"]'))
     for (const el of buttons) {
       const text = (el.textContent ?? '').trim()
       if (acceptText.test(text)) {
@@ -230,7 +230,7 @@ async function dismissCookies(page: import('playwright').Page) {
   // Hide anything that still looks like a cookie/consent overlay
   await page.evaluate(() => {
     const keywords = /cookie|consent|gdpr|privacy|banner|notice|overlay|popup|modal/i
-    const elements = [...document.querySelectorAll('*')]
+    const elements = Array.from(document.querySelectorAll('*'))
     for (const el of elements) {
       const html = el as HTMLElement
       if (!html.offsetParent && html.tagName !== 'BODY') continue
@@ -328,13 +328,13 @@ for (const url of urls) {
       await page.close()
 
     } else {
-      const videoDir = join(tmpdir(), `frameup-${Date.now()}`)
-      await mkdir(videoDir, { recursive: true })
+      const frameDir = join(tmpdir(), `frameup-frames-${Date.now()}`)
+      await mkdir(frameDir, { recursive: true })
 
       const context = await browser.newContext({
         viewport: { width, height },
+        deviceScaleFactor: 2,
         colorScheme: darkMode ? 'dark' : 'light',
-        recordVideo: { dir: videoDir, size: { width, height } },
       })
 
       const page = await context.newPage()
@@ -355,7 +355,22 @@ for (const url of urls) {
         page.waitForTimeout(WAIT_MS)
       )
 
+      const baseName = `${stem}_${ts}_${width}x${height}${suffix}`
+
       await spin(`Rolling ${label} (${width}×${height})…`, async () => {
+        let frameIndex = 0
+        let capturing  = true
+
+        // Screenshot loop — runs as fast as Playwright allows
+        const captureLoop = (async () => {
+          while (capturing) {
+            const framePath = join(frameDir, `frame_${String(frameIndex).padStart(5, '0')}.png`)
+            await page.screenshot({ path: framePath })
+            frameIndex++
+          }
+        })()
+
+        // Scroll animation runs in the browser independently
         if (!noScroll) {
           await page.evaluate(async ({ durationMs, sel }) => {
             let startY = 0
@@ -386,42 +401,37 @@ for (const url of urls) {
         }
 
         await page.waitForTimeout(HOLD_MS)
+        capturing = false
+        await captureLoop
+
         await page.close()
         await context.close()
-      })
 
-      const files = await readdir(videoDir)
-      const webm  = files.find(f => f.endsWith('.webm'))
-      if (!webm) {
-        console.error(`\n  ${c.red}✗${c.reset}  No video found for ${width}×${height}\n`)
-        continue
-      }
+        if (!hasFfmpeg) {
+          console.error(`\n  ${c.red}✗${c.reset}  ffmpeg is required for video mode\n`)
+          return
+        }
 
-      const baseName = `${stem}_${ts}_${width}x${height}${suffix}`
-      const webmSrc  = join(videoDir, webm)
-
-      if (hasFfmpeg) {
         const mp4Out = join(outDir, `${baseName}.mp4`)
-        await spin('Developing the footage…', () => {
-          const wmFlag  = watermarkPath ? `-i "${watermarkPath}" -filter_complex "overlay=W-w-20:H-h-20" ` : ''
-          const fpsFlag = FPS > 0 ? `-r ${FPS} ` : ''
-          const scaleFilter = 'scale=iw*2:ih*2:flags=lanczos'
-          const filterGraph = watermarkPath
-            ? `[0:v]${scaleFilter}[scaled];[scaled][1:v]overlay=W-w-20:H-h-20`
-            : scaleFilter
-          const filterFlag = watermarkPath
-            ? `-filter_complex "${filterGraph}"`
-            : `-vf "${filterGraph}"`
-          return execAsync(`ffmpeg -y -i "${webmSrc}" ${watermarkPath ? `-i "${watermarkPath}" ` : ''}${filterFlag} ${fpsFlag}-c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -movflags +faststart "${mp4Out}"`)
-        })
+        const totalMs  = (noScroll ? 0 : SCROLL_DURATION_MS) + HOLD_MS
+        const fps      = FPS > 0 ? FPS : Math.max(1, Math.round(frameIndex / (totalMs / 1000)))
+        const filterGraph = watermarkPath
+          ? `[0:v][1:v]overlay=W-w-20:H-h-20`
+          : null
+        const filterFlag = filterGraph
+          ? `-filter_complex "${filterGraph}"`
+          : ''
+        const wmInput = watermarkPath ? `-i "${watermarkPath}"` : ''
+
+        await execAsync(
+          `ffmpeg -y -r ${fps} -i "${frameDir}/frame_%05d.png" ${wmInput} ${filterFlag} -c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -movflags +faststart "${mp4Out}"`
+        )
+
+        await rm(frameDir, { recursive: true, force: true })
+
         log(mp4Out)
         saved.push(mp4Out)
-      } else {
-        const webmOut = join(outDir, `${baseName}.webm`)
-        await rename(webmSrc, webmOut)
-        log(webmOut)
-        saved.push(webmOut)
-      }
+      })
     }
 
     console.log()
