@@ -334,7 +334,7 @@ for (const url of urls) {
       const context = await browser.newContext({
         viewport: { width, height },
         colorScheme: darkMode ? 'dark' : 'light',
-        recordVideo: { dir: videoDir, size: { width, height } },
+        recordVideo: { dir: videoDir, size: { width: width * 2, height: height * 2 } },
       })
 
       const page = await context.newPage()
@@ -405,7 +405,14 @@ for (const url of urls) {
         await spin('Developing the footage…', () => {
           const wmFlag  = watermarkPath ? `-i "${watermarkPath}" -filter_complex "overlay=W-w-20:H-h-20" ` : ''
           const fpsFlag = FPS > 0 ? `-r ${FPS} ` : ''
-          return execAsync(`ffmpeg -y -i "${webmSrc}" ${wmFlag}${fpsFlag}-c:v libx264 -pix_fmt yuv420p "${mp4Out}"`)
+          const scaleFilter = 'scale=trunc(iw/2)*2:trunc(ih/2)*2'
+          const filterGraph = watermarkPath
+            ? `[0:v]${scaleFilter}[scaled];[scaled][1:v]overlay=W-w-20:H-h-20`
+            : scaleFilter
+          const filterFlag = watermarkPath
+            ? `-filter_complex "${filterGraph}"`
+            : `-vf "${filterGraph}"`
+          return execAsync(`ffmpeg -y -i "${webmSrc}" ${watermarkPath ? `-i "${watermarkPath}" ` : ''}${filterFlag} ${fpsFlag}-c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -movflags +faststart "${mp4Out}"`)
         })
         log(mp4Out)
         saved.push(mp4Out)
