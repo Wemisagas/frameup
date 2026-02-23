@@ -84,21 +84,34 @@ bunx playwright install chromium
 
 ## Every day use
 
-**macOS** — open Terminal:
+### macOS
+
+1. Open **Terminal** (`Cmd + Space`, type Terminal, hit Enter)
+2. Type `cd ` (with a space after it), then drag the **frameup** folder from Finder into the Terminal window — it fills in the path automatically
+3. Hit **Enter**
+4. Run the command:
 
 ```bash
-cd ~/frameup
 bun run frameup.ts https://yourwebsite.com images
 ```
 
-**Windows** — open PowerShell:
+Or for a scroll video:
+
+```bash
+bun run frameup.ts https://yourwebsite.com video
+```
+
+### Windows
+
+1. Open the **frameup** folder in File Explorer
+2. Click the address bar at the top of the window, type `powershell`, and hit **Enter** — this opens PowerShell directly inside that folder
+3. Run the command:
 
 ```powershell
-cd $HOME\frameup
 bun run frameup.ts https://yourwebsite.com images
 ```
 
-Or for a scroll video, replace `images` with `video`.
+---
 
 Your files will appear in **~/Downloads** within about 30 seconds.
 
