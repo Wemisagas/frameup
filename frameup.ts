@@ -51,7 +51,7 @@ if (args.length === 0 || args.includes('--help')) {
   ${c.bold}frameup ✦${c.reset}
 
   ${c.dim}Usage:${c.reset}
-    bun run frameup.ts <url> [images|video] [options]
+    bun run frameup.ts <url> [url2 url3 ...] [images|video] [options]
 
   ${c.dim}Modes:${c.reset}
     images   Capture screenshots (default)
@@ -67,7 +67,7 @@ if (args.length === 0 || args.includes('--help')) {
 
   ${c.dim}Examples:${c.reset}
     bun run frameup.ts https://example.com
-    bun run frameup.ts https://example.com video
+    bun run frameup.ts https://example.com https://other.com images
     bun run frameup.ts https://example.com video --scroll=12000
     bun run frameup.ts https://example.com images --wait=3000 --density=2
     bun run frameup.ts https://example.com images --selector=".hero"
@@ -76,10 +76,10 @@ if (args.length === 0 || args.includes('--help')) {
   process.exit(0)
 }
 
-const url  = args.find(a => !a.startsWith('--') && a !== 'images' && a !== 'video')
+const urls = args.filter(a => !a.startsWith('--') && a !== 'images' && a !== 'video')
 const mode = args.find(a => a === 'images' || a === 'video') ?? 'images'
 
-if (!url) {
+if (urls.length === 0) {
   console.error(`\n  ${c.red}✗${c.reset}  A URL is required. Run with --help for usage.\n`)
   process.exit(1)
 }
@@ -107,121 +107,124 @@ const hasFfmpeg = (() => {
 
 // ─── go ──────────────────────────────────────────────────────────────────────
 
-const hostname = new URL(url).hostname.replace(/\./g, '-')
-const ts       = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')
-const outDir   = join(homedir(), 'Downloads')
-const suffix   = selector ? `_${selector.replace(/[^a-z0-9]/gi, '')}` : ''
-
-console.log(`\n  ${c.bold}frameup ✦${c.reset}  ${c.dim}${hostname}  ·  ${mode}${c.reset}\n`)
+const outDir = join(homedir(), 'Downloads')
+const suffix = selector ? `_${selector.replace(/[^a-z0-9]/gi, '')}` : ''
 
 const browser = await chromium.launch()
 const saved: string[] = []
 
-for (const { width, height, label } of SIZES) {
-  if (mode === 'images') {
-    const page = await browser.newPage({ deviceScaleFactor: DENSITY })
-    await page.setViewportSize({ width, height })
+for (const url of urls) {
+  const hostname = new URL(url).hostname.replace(/\./g, '-')
+  const ts       = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')
 
-    await spin(`Opening ${hostname}…`, () =>
-      page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 })
-    )
+  console.log(`\n  ${c.bold}frameup ✦${c.reset}  ${c.dim}${hostname}  ·  ${mode}${c.reset}\n`)
 
-    await spin('Letting animations breathe…', () =>
-      page.waitForTimeout(WAIT_MS)
-    )
+  for (const { width, height, label } of SIZES) {
+    if (mode === 'images') {
+      const page = await browser.newPage({ deviceScaleFactor: DENSITY })
+      await page.setViewportSize({ width, height })
 
-    const file = join(outDir, `${hostname}_${ts}_${width}x${height}${suffix}.png`)
-
-    await spin(`Shooting ${label} (${width}×${height})…`, async () => {
-      if (selector) {
-        await page.locator(selector).first().screenshot({ path: file })
-      } else {
-        await page.screenshot({ path: file })
-      }
-    })
-
-    log(file)
-    saved.push(file)
-    await page.close()
-
-  } else {
-    const videoDir = join(tmpdir(), `frameup-${Date.now()}`)
-    await mkdir(videoDir, { recursive: true })
-
-    const context = await browser.newContext({
-      viewport: { width, height },
-      recordVideo: { dir: videoDir, size: { width, height } },
-    })
-
-    const page = await context.newPage()
-
-    await spin(`Opening ${hostname}…`, () =>
-      page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 })
-    )
-
-    await spin('Letting animations breathe…', () =>
-      page.waitForTimeout(WAIT_MS)
-    )
-
-    await spin(`Rolling ${label} (${width}×${height})…`, async () => {
-      await page.evaluate(async ({ durationMs, sel }) => {
-        let startY = 0
-        let endY   = document.body.scrollHeight - window.innerHeight
-
-        if (sel) {
-          const el = document.querySelector(sel)
-          if (el) {
-            const rect = el.getBoundingClientRect()
-            startY = window.scrollY + rect.top
-            endY   = Math.max(startY, window.scrollY + rect.bottom - window.innerHeight)
-            window.scrollTo(0, startY)
-          }
-        }
-
-        if (endY <= startY) return
-        const start = performance.now()
-        await new Promise<void>(resolve => {
-          function step() {
-            const t = Math.min((performance.now() - start) / durationMs, 1)
-            const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
-            window.scrollTo(0, startY + (endY - startY) * eased)
-            t < 1 ? requestAnimationFrame(step) : resolve()
-          }
-          requestAnimationFrame(step)
-        })
-      }, { durationMs: SCROLL_DURATION_MS, sel: selector ?? null })
-
-      await page.waitForTimeout(HOLD_MS)
-      await page.close()
-      await context.close()
-    })
-
-    const files = await readdir(videoDir)
-    const webm  = files.find(f => f.endsWith('.webm'))
-    if (!webm) {
-      console.error(`\n  ${c.red}✗${c.reset}  No video found for ${width}×${height}\n`)
-      continue
-    }
-
-    const baseName = `${hostname}_${ts}_${width}x${height}${suffix}`
-    const webmSrc  = join(videoDir, webm)
-
-    if (hasFfmpeg) {
-      const mp4Out = join(outDir, `${baseName}.mp4`)
-      await spin('Developing the footage…', () =>
-        execAsync(`ffmpeg -y -i "${webmSrc}" -c:v libx264 -pix_fmt yuv420p "${mp4Out}"`)
+      await spin(`Opening ${hostname}…`, () =>
+        page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 })
       )
-      log(mp4Out)
-      saved.push(mp4Out)
-    } else {
-      const webmOut = join(outDir, `${baseName}.webm`)
-      await rename(webmSrc, webmOut)
-      log(webmOut)
-      saved.push(webmOut)
-    }
-  }
 
-  console.log()
+      await spin('Letting animations breathe…', () =>
+        page.waitForTimeout(WAIT_MS)
+      )
+
+      const file = join(outDir, `${hostname}_${ts}_${width}x${height}${suffix}.png`)
+
+      await spin(`Shooting ${label} (${width}×${height})…`, async () => {
+        if (selector) {
+          await page.locator(selector).first().screenshot({ path: file })
+        } else {
+          await page.screenshot({ path: file })
+        }
+      })
+
+      log(file)
+      saved.push(file)
+      await page.close()
+
+    } else {
+      const videoDir = join(tmpdir(), `frameup-${Date.now()}`)
+      await mkdir(videoDir, { recursive: true })
+
+      const context = await browser.newContext({
+        viewport: { width, height },
+        recordVideo: { dir: videoDir, size: { width, height } },
+      })
+
+      const page = await context.newPage()
+
+      await spin(`Opening ${hostname}…`, () =>
+        page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 })
+      )
+
+      await spin('Letting animations breathe…', () =>
+        page.waitForTimeout(WAIT_MS)
+      )
+
+      await spin(`Rolling ${label} (${width}×${height})…`, async () => {
+        await page.evaluate(async ({ durationMs, sel }) => {
+          let startY = 0
+          let endY   = document.body.scrollHeight - window.innerHeight
+
+          if (sel) {
+            const el = document.querySelector(sel)
+            if (el) {
+              const rect = el.getBoundingClientRect()
+              startY = window.scrollY + rect.top
+              endY   = Math.max(startY, window.scrollY + rect.bottom - window.innerHeight)
+              window.scrollTo(0, startY)
+            }
+          }
+
+          if (endY <= startY) return
+          const start = performance.now()
+          await new Promise<void>(resolve => {
+            function step() {
+              const t = Math.min((performance.now() - start) / durationMs, 1)
+              const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
+              window.scrollTo(0, startY + (endY - startY) * eased)
+              t < 1 ? requestAnimationFrame(step) : resolve()
+            }
+            requestAnimationFrame(step)
+          })
+        }, { durationMs: SCROLL_DURATION_MS, sel: selector ?? null })
+
+        await page.waitForTimeout(HOLD_MS)
+        await page.close()
+        await context.close()
+      })
+
+      const files = await readdir(videoDir)
+      const webm  = files.find(f => f.endsWith('.webm'))
+      if (!webm) {
+        console.error(`\n  ${c.red}✗${c.reset}  No video found for ${width}×${height}\n`)
+        continue
+      }
+
+      const baseName = `${hostname}_${ts}_${width}x${height}${suffix}`
+      const webmSrc  = join(videoDir, webm)
+
+      if (hasFfmpeg) {
+        const mp4Out = join(outDir, `${baseName}.mp4`)
+        await spin('Developing the footage…', () =>
+          execAsync(`ffmpeg -y -i "${webmSrc}" -c:v libx264 -pix_fmt yuv420p "${mp4Out}"`)
+        )
+        log(mp4Out)
+        saved.push(mp4Out)
+      } else {
+        const webmOut = join(outDir, `${baseName}.webm`)
+        await rename(webmSrc, webmOut)
+        log(webmOut)
+        saved.push(webmOut)
+      }
+    }
+
+    console.log()
+  }
 }
 
 await browser.close()

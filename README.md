@@ -101,6 +101,12 @@ Or for a scroll video:
 bun run frameup.ts https://yourwebsite.com video
 ```
 
+You can pass multiple URLs and they'll be captured one after another:
+
+```bash
+bun run frameup.ts https://site1.com https://site2.com https://site3.com images
+```
+
 ### Windows
 
 1. Open the **frameup** folder in File Explorer
@@ -109,6 +115,12 @@ bun run frameup.ts https://yourwebsite.com video
 
 ```powershell
 bun run frameup.ts https://yourwebsite.com images
+```
+
+You can pass multiple URLs and they'll be captured one after another:
+
+```powershell
+bun run frameup.ts https://site1.com https://site2.com https://site3.com images
 ```
 
 ---
